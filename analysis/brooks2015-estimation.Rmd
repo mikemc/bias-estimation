@@ -1,0 +1,116 @@
+---
+title: ""
+output:
+  html_document:
+    toc: true
+    toc_float: false
+    self_contained: true
+---
+
+
+# Setup
+
+```{r}
+library(tidyverse)
+library(here)
+library(BiasManuscript)
+library(rstan)
+options(mc.cores = parallel::detectCores())
+rstan_options(auto_write = TRUE)
+library(tidybayes)
+```
+
+```{r load_data}
+data("brooks2015_sample_data")
+data("brooks2015_counts")
+# data("brooks2015_species_info")
+```
+
+```{r}
+sam <- brooks2015_sample_data
+main <- brooks2015_counts %>%
+    filter(Table == "above", Taxon != "Other") %>%
+    select(Sample, Taxon, Count)
+main <- main %>%
+    left_join(sam, by = "Sample") %>%
+    filter(Mixture_type == "Cells") %>%
+    mutate(
+        Expected = str_detect(Species_list, Taxon),
+        Actual = Expected * 1,
+        Observed = Count * Actual
+    )
+taxa <- main$Taxon %>% unique
+```
+
+Form that will be easier to get observed + expected matrices from.
+```{r}
+observed <- main %>%
+    select(Sample, Taxon, Observed) %>%
+    spread(Taxon, Observed)
+actual <- main %>%
+    select(Sample, Taxon, Actual) %>%
+    spread(Taxon, Actual)
+all.equal(observed$Sample, actual$Sample)
+```
+
+```{r}
+dat <- list(
+    K = 7,
+    N = nrow(observed),
+    observed = observed %>% select(-Sample) %>% as("matrix"),
+    actual = actual %>% select(-Sample) %>% as("matrix"),
+    scale_sigma_beta = 3,
+    scale_Sigma = 1
+    )
+fit1 <- stan(
+    file = here("stan-models", "lognormal-mock.stan"),
+    data = dat,
+    chains = 4, iter = 2000,
+    )
+```
+
+Get the posterior for plotting
+```{r}
+tb <- spread_draws(fit1, mean_clr_B[taxid]) %>%
+    left_join(tibble(taxid = seq_along(taxa), Taxon = taxa), by = "taxid") %>%
+    mutate(Type = "Stan fit")
+```
+
+Get the point estimator for comparison
+```{r}
+point_est <- estimate_bias(main) %>%
+    mutate(mean_clr_B = log(Bias_est), Type = "Point est.")
+```
+
+
+```{r, fig.width = 5, fig.height = 3}
+ggplot(tb, aes(x = fct_reorder(Taxon, mean_clr_B), Taxon, y = mean_clr_B, 
+        color = Type)) +
+    geom_violin(draw_quantiles = c(0.5)) +
+    # geom_point(data = point_est, color = "darkred", shape = 3, size = 4) +
+    geom_point(data = point_est, shape = 16, size = 1.5) +
+    labs(x = "Taxon", y = "Centered log efficiency",
+        title = "Bias in the Brooks2015 cell mixtures") +
+    scale_color_manual(values = c("darkred", "black")) +
+    coord_flip() +
+    theme_minimal() +
+    theme(legend.position = "none")
+# ggsave(here("figures", "brooks2015-fit.pdf"), width = 5, height = 3, 
+#     units = "in")
+```
+
+The fit looks good. Problem is the bad sampling, probably mainly due to the
+soft centering approach.
+
+Then next in some order is 
+- commit this script and the stan model
+- make a reparameterization to pinning down one taxon, and make sure that is
+  working.
+- try if I can reparam to the clr; perhaps by making a transformed beta that is
+  beta - mean(beta).
+
+this last approach - define a K+1 vector beta0 s.t.  beta0[K+1] = -sum(
+{beta0[k] for k < K+1} ). But intuitively I feel like this could only work if
+we have samples w/ all taxa.
+    
+
