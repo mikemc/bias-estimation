@@ -114,3 +114,34 @@ this last approach - define a K+1 vector beta0 s.t.  beta0[K+1] = -sum(
 we have samples w/ all taxa.
     
 
+Testing efficiency of different data structures.
+```{r}
+t1 <- system.time(
+    fit2 <- stan(
+        file = here("stan-models", "lognormal-mock0.stan"),
+        data = dat,
+        chains = 1, iter = 1000,
+        )
+)
+t2 <- system.time(
+    fit3 <- stan(
+        file = here("stan-models", "lognormal-mock.stan"),
+        data = dat,
+        chains = 1, iter = 1000,
+        )
+)
+```
+
+Changing from matrix to vector array has essentially no effect.
+
+```{r}
+print(fit1, pars = "mean_clr_B")
+print(fit2, pars = "mean_clr_B")
+print(fit3, pars = "mean_clr_B")
+```
+
+
+Ways we can try to speed this up:
+- different approach to specifying beta
+- see if can vectorize adding the log efficiency vector to the log RA vector
+- try only modeling the efficiencies of the taxa actually in the sample.

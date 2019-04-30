@@ -1,6 +1,5 @@
 // Actual compositions known
 // Diagonal covariance matrix
-// TODO: compare types (matrix, vector, row_vector to *-cov.stan
 // Uses the "Soft Centering" approach for beta described in section 1.7 of the
 // Stan Users Guide version 2.19
 functions {
@@ -13,25 +12,23 @@ data {
     // Count data
     int<lower=0> observed[N, K];
     // Actual relative abundances
-    matrix<lower=0>[N, K] actual;
+    vector<lower=0>[K] actual[N];
     // Scale for prior on spread of mean log efficiencies
     real<lower=0> scale_sigma_beta;
     // Scale for prior on lognormal distribution spread param
     real<lower=0> scale_Sigma;
 }
 transformed data {
-    // TODO: consider turning actual and log_actual into vector arrays; may
-    // improve speed
-    matrix[N, K] log_actual;
+    vector[K] log_actual[N];
     for (i in 1:N) {
         log_actual[i] = log(actual[i]);
     }
 }
 parameters {
     // Realized log efficiencies in each sample
-    matrix[N,K] log_B;
+    vector[K] log_B[N];
     // Mean log efficiencies of taxa 1:K relative to all species
-    row_vector[K] beta;
+    vector[K] beta;
     // Std. dev of realized log efficiencies
     vector<lower=0>[K] sigma_log_B;
     // Spread of beta_i's
@@ -54,11 +51,11 @@ model {
     for (i in 1:N) {
         log_B[i] ~ multi_normal(beta, Sigma);
         observed[i] ~ multinomial( 
-            softmax( log_actual[i]' + log_B[i]' )
+            softmax( log_actual[i] + log_B[i] )
         );
     } 
 }
 generated quantities {
-    row_vector[K] mean_clr_B;
+    vector[K] mean_clr_B;
     mean_clr_B = beta - mean(beta);
 }
