@@ -51,9 +51,6 @@ actual <- main %>%
     select(Sample, Taxon, Actual) %>%
     spread(Taxon, Actual)
 all.equal(observed$Sample, actual$Sample)
-```
-
-```{r}
 dat <- list(
     K = 7,
     N = nrow(observed),
@@ -62,7 +59,10 @@ dat <- list(
     scale_sigma_beta = 3,
     scale_Sigma = 1
     )
-fit1 <- stan(
+```
+
+```{r}
+fit <- stan(
     file = here("stan-models", "lognormal-mock.stan"),
     data = dat,
     chains = 4, iter = 2000,
@@ -117,22 +117,15 @@ we have samples w/ all taxa.
 Testing efficiency of different data structures.
 ```{r}
 t1 <- system.time(
-    fit2 <- stan(
-        file = here("stan-models", "lognormal-mock0.stan"),
+    fit1 <- stan(
+        file = here("stan-models", "lognormal-mock.stan"),
         data = dat,
         chains = 1, iter = 1000,
         )
 )
 t2 <- system.time(
-    fit3 <- stan(
-        file = here("stan-models", "lognormal-mock.stan"),
-        data = dat,
-        chains = 1, iter = 1000,
-        )
-)
-t3 <- system.time(
-    fit4 <- stan(
-        file = here("stan-models", "lognormal-mock.stan"),
+    fit2 <- stan(
+        file = here("stan-models", "lognormal-mock-qr.stan"),
         data = dat,
         chains = 1, iter = 1000,
         )
@@ -144,9 +137,7 @@ Changing from matrix to vector array has essentially no effect.
 ```{r}
 print(fit1, pars = "mean_clr_B")
 print(fit2, pars = "mean_clr_B")
-print(fit3, pars = "mean_clr_B")
-print(fit4, pars = "mean_clr_B")
-print(fit4, pars = "beta")
+print(fit2, pars = "beta")
 ```
 
 
