@@ -1,0 +1,210 @@
+\input{./preamble.tex}
+
+\begin{document}
+
+\section{Probabilistic formulation of the bias model for Bayesian or
+  maximum-likelihood inference}
+
+\subsection{Controls samples with known true composition}
+
+$K$ is the number of taxa.
+
+For sample $s$, let $\vec A(s)$ be the vector of actual relative abundances.
+Assume $\vec A(s)$ is known with absolute certainty. Let $\vec O(s)$ be the
+vector of relative abundances we would observe if we sequenced with infinite
+read depth.  Without loss of generality, take $\vec A(s)$ and $\vec O(s)$ to be
+normalized to proportions, such that $\sum_i \vec A_i(s) = 1$ and $\sum_i \vec
+O_i(s) = 1$.  Let $\vec C(s)$ be the vector of read counts that we actually
+observe, and assume this is multinomial conditional on $\vec O(s)$ and the read
+depth,
+\begin{align}
+  \vec C(s) \mid \sum_i C_i(s), \vec O(s) 
+  \sim \mathrm{Multinomial}\left(\sum_i C_i(s), \vec O(s) \right),
+\end{align}
+where $\sum_i C_i(s)$ is total read count for all taxa in the sample. Note that
+$\sim$ is here and throughout to mean ``is distributed as'' rather than to
+denote compositional equivalence.
+
+Take the bias $\vec B(s)$ in sample $s$ to be a random compositional vector
+such that
+\begin{align}
+    \label{eq:model}
+    \vec O(s) = \clo\left[ \vec A(s) \cdot \vec B(s) \right],
+\end{align}
+where $\clo(\vec X) = \vec X / \sum_i X_i$ denotes ``closure'' or normalization
+to proportions.
+
+The spirit of our model is that the compositional mean (or ``center'') of $\vec
+B(s]$ or arithmetic mean of $\clr \vec B(s)$ is determined only by the protocol
+$P$ and therefore constant across samples. Our primary goal is to estimate
+either of these quantities, $\cen[\vec B(s)]$ or $E[\clr \vec B(s)]$, which are
+connected via $\cen[\vec B(s)] = \exp\{ E[\clr \vec B(s)] \}$.
+
+Let $\beta = E[\clr \vec B(s)]$ be the mean and $\vec \Sigma$ be the covariance
+matrix of $\clr \vec B(s)$, which we assume to be independent of sample
+composition, and take as multivariate normal (NVM),
+\begin{align*}
+  \clr \vec B(s) \sim N(\vec \beta, \vec \Sigma).
+\end{align*}
+
+\paragraph{Priors:}
+
+I've been using the (hierarchical) priors
+\begin{align}
+  \label{eq:priors}
+% O &\sim A \oplus LN(\vec \beta, \vec \Sigma)
+% \\ C &\sim Multnomial\left(\sum C_k, O \right)
+  \beta_i &\sim N(0, \sigma_\beta)
+  \\ \sigma_\beta &\sim \mathrm{Exp}(3)
+  \\ \vec \Sigma &= \mathrm{Diag}(\sigma_1, \dots, \sigma_K)
+  \\ \sigma_i &\sim \mathrm{Exp}(1).
+\end{align}
+
+Specifying such a model in Stan is complicated by the fact that the $\beta_i$'s
+should sum to $0$. I've been experimenting with the different strategies
+described in Section 1.7 ``Parameterizing Centered Vectors'' of the Stan Users Guide
+v2.19
+\url{https://mc-stan.org/docs/2_19/stan-users-guide/parameterizing-centered-vectors.html}.
+
+Based on biological considerations and the efficiencies we observe in the
+Brooks and Costea datasets, a prior on $\beta_i$ with fatter tails is probably
+more appropriate than the normal distribution.
+
+\paragraph{Note about informatic bias following multinomial sampling:}
+
+I'm supposing that the multinomial sampling correponds to the joint operation
+of sequencing and read assignment, yielding a vector of counts $\vec C{(s)}$.
+Many taxonomic profiling programs normalize $\vec C{(s)}$ by dividing by
+taxon-specific factors (such as marker-gene copy number or length). This step
+is essentially adding bias that wasn't included in our model above.  But since
+this informatic normalization is a deterministic operation, we can simply add
+it to our estimate of $\vec B$ (or $\vec \beta$), as long we have access to the
+taxon-specific factors and have access to the counts $\vec C{(s)}$ (needed for
+fitting the above model to begin with).
+
+\subsection{Differential bias from paired samples with unknown composition}
+
+\subsubsection{Model}
+
+Strategy: Substitute $\vec O^{(P)}(s)$ for $\vec O(s)$ and $\vec O^{(R)}(s)$
+for $\vec A(s)$; but since we observe $\vec C^{(R)}(s)$ rather than $\vec
+O^{(R)}(s)$, we have to treat $\vec O^{(R)}(s)$ as a parameter as well.
+
+As before, take the counts observed by protocol $P$ to be multinomial,
+\begin{align}
+  \label{eq:C-P}
+  \vec C^{(P)}(s) \mid \sum_i C^{(P)}_i(s), \vec O^{(P)}(s) 
+  \sim \mathrm{Multinomial}\left(\sum_i C^{(P)}_i(s), \vec O^{(P)}(s) \right),
+\end{align}
+We now put $\vec O^{(R)}$ in place of $\vec A(s)$,
+\begin{align}
+    \label{eq:O-P}
+    \vec O^{(P)}(s) = \clo\left[ \vec O^{(R)}(s) \cdot \vec B^{(P/R)}(s) \right],
+\end{align}
+and model the differential bias as MVN,
+\begin{align}
+  \label{eq:distn-clrB-PR}
+  \clr \vec B^{(P/R)}(s) \sim N(\vec \beta^{(P/R)}, \vec \Sigma^{(P/R)}),
+\end{align}
+
+The form is the same as before with $\vec O^{(R)}(s)$ substituted for $\vec
+A(s)$. Since we don't directly observe $\vec O^{(R)}(s)$, we also assume the
+counts seen by the reference protocol to be multinomial,
+\begin{align}
+  \label{eq:C-R}
+  \vec C^{(R)}(s) \mid \sum_i C^{(R)}_i(s), \vec O^{(R)}(s) 
+  \sim \mathrm{Multinomial}\left(\sum_i C^{(R)}_i(s), \vec O^{(R)}(s) \right).
+\end{align}
+We now also need a prior on $\vec O^{(R)}(s)$, which I've been taking to be
+$\mathrm{Dirichlet}(0.5)$.
+
+\subsubsection{Details}
+
+The likelihood model can be derived by supposing that, conditional on $\vec
+A(s)$, the observations from each protocol individually follow the model of the
+previous section. Starting with a model in which the observed counts of each
+protocol depend on $\vec A(s)$, we are able to obtain a model without reference
+to $\vec A(s)$, thanks to 1) differential bias equalling the difference in the
+bias of the individual protocols and 2) the simple algebra of differences of
+independent MVNs.
+
+Suppose for each sample $s$ we have data $\vec C^{(P)}(s)$ and 
+$\vec C^{(R)}(s)$ for protocols $P$ and $R$. Again take the counts to be
+multinomial given the ``observed'' proportions $\vec O^{(P)}(s)$ and $\vec
+O^{(R)}(s)$, which equal
+\begin{align}
+    \label{eq:O-P}
+    \vec O^{(P)}(s) = \clo\left[ \vec A(s) \cdot \vec B^{(P)}(s) \right]
+\end{align}
+and 
+\begin{align}
+    \label{eq:O-R}
+    \vec O^{(R)}(s) = \clo\left[ \vec A(s) \cdot \vec B^{(R)}(s) \right].
+\end{align}
+
+As before, we assume that the CLR bias of each sample is independent
+MVN, though now with protocol specific mean and variances,
+\begin{align}
+  \label{eq:distn-clrB-P}
+  \clr \vec B^{(P)}(s) \sim N(\vec \beta^{(P)}, \vec \Sigma^{(P)})
+\end{align}
+and
+\begin{align}
+  \label{eq:distn-clrB-R}
+  \clr \vec B^{(R)}(s) \sim N(\vec \beta^{(R)}, \vec \Sigma^{(R)}).
+\end{align}
+It follows that the CLR differential bias, 
+\begin{align} 
+  \label{}
+  \clr \vec B^{(P/R)}(s) &= \clr \left[\vec B^{(P)}(s) / \vec B^{(R)}(s)]
+  \\&= \clr \vec B^{(P)}(s) - \clr \vec B^{(R)}(s),
+\end{align}
+is also MVN,
+\begin{align}
+  \label{eq:distn-clrB-PR}
+  \clr \vec B^{(P/R)}(s) \sim N(\vec \beta^{(P/R)}, \vec \Sigma^{(P/R)}),
+\end{align}
+with mean
+\begin{align}
+  \label{eq:beta-PR}
+  \vec \beta^{(P/R)} = \vec \beta^{(P)} - \vec \beta^{(P)}
+\end{align}
+and covariance
+\begin{align}
+  \label{eq:Sigma-PR}
+  \vec \Sigma^{(P/R)} = \vec \Sigma^{(P)} + \vec \Sigma^{(R)}.
+\end{align}
+So we can simply estimate $\vec \beta^{(P/R)}$ and $\vec \Sigma^{(P/R)}$
+directly using the likelihood from \eqref{eq:distn-clrB-PR}.
+
+\section{Questions and issues}
+
+Question: how to pin down $\vec B$ and its mean and (co)variance?
+
+Question: how does the choice of log-ratio transform change the interpretation
+of the parameters to the normal distribution (in particular, of how we should
+set priors).
+
+In reality, we don't know $\vec A$ with certainty, and I don't think the
+measurement error in $\vec A$ is going to be well captured by the log-normal
+error model.
+
+In many cases, the counts are normalized (e.g., by predicted marker gene length or copy
+number); this bias is deterministic though, and so can be easily incorporated
+afterwards if we know the counts vector and the normalization vector. Users
+often will not though, since many pipelines do this automatically and don't
+give the users easy acccess to these important quantities
+
+Implicit or explicit filtering of taxa with low observed abundance typically
+occurs in advance of the user obtaining $\vec C$ means that it will not be
+truly multinomial.
+
+
+todo
+- add (P) decorations to the non-differential bias est section
+- replace (P) equations in the diff bias section w/ eq refs to above
+- replace duplicated eq'ns in the diff bias details section w/ refs to eqs
+above
+- revise test, adding missing info along the way.
+
+\end{document}
