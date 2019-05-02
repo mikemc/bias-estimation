@@ -1,0 +1,11 @@
+# Latex output
+*.aux
+*.bcf
+*.fdb_latexmk
+*.log
+*.bbl
+*.blg
+*.fls
+*.out
+*.run.xml
+*.pdf
