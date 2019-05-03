@@ -40,16 +40,22 @@ transformed parameters {
     Sigma = diag_matrix(sigma_log_B .* sigma_log_B);  
 }
 model {
-    // Prior on biases
-    // TODO: consider allowing fatter tails
+    // Precompute the mean of the MVN
+    vector[K] Beta[N];
+    for (n in 1:N)
+        Beta[n] = beta;
+
+    // Prior on bias
     beta ~ normal(0, sigma_beta);
     sigma_beta ~ exponential(scale_sigma_beta);
     // Prior on efficiency variance
     sigma_log_B ~ exponential(scale_Sigma);
+
+    // Realised efficiencies
+    log_B ~ multi_normal(Beta, Sigma);
     // Observed counts after random multiplicative error and multinomial
     // sampling
     for (i in 1:N) {
-        log_B[i] ~ multi_normal(beta, Sigma);
         observed[i] ~ multinomial( 
             softmax( log_actual[i] + log_B[i] )
         );
