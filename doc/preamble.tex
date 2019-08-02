@@ -1,0 +1,107 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[left=1in,right=1in,top=1in,bottom=1in]{geometry}
+\usepackage{amsfonts,amssymb,amsmath}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{xcolor}
+\usepackage{mathtools}
+\usepackage{authblk}
+% Caption package for formatting figure legends
+\usepackage[font={footnotesize,sf}]{caption}
+% Allow compiling of entire root document or individual sub-documents
+\usepackage{subfiles}
+% Enable double spacing commands
+% \usepackage{setspace}
+%\doublespacing
+% \setstretch{1.4}
+%% Citation and bibliography
+\usepackage[backend=biber,citestyle=numeric-comp,bibstyle=authoryear,sorting=none,
+    uniquename=false,uniquelist=false,date=year,
+    %% Bibliography
+    giveninits=true,url=false,doi=true,isbn=false,eprint=false,dashed=false,
+    % Truncate papers with > maxbibnames authors to first minbibnames authors + et al.
+    maxbibnames=10,minbibnames=5
+]{biblatex}
+\bibliography{references.bib}
+% Add numbers to bibliography
+% see https://tex.stackexchange.com/questions/95337/print-year-after-author-in-biblatex-numeric-style
+\DeclareNameAlias{sortname}{first-last}
+\DeclareFieldFormat{labelnumberwidth}{\mkbibbrackets{#1}}
+\defbibenvironment{bibliography}
+  {\list
+     {\printtext[labelnumberwidth]{%
+    \printfield{labelprefix}%    \printfield{prefixnumber}%
+    \printfield{labelnumber}}}
+     {\setlength{\labelwidth}{\labelnumberwidth}%
+      \setlength{\leftmargin}{\labelwidth}%
+      \setlength{\labelsep}{\biblabelsep}%
+      \addtolength{\leftmargin}{\labelsep}%
+      \setlength{\itemsep}{\bibitemsep}%
+      \setlength{\parsep}{\bibparsep}}%
+      \renewcommand*{\makelabel}[1]{\hss##1}}
+  {\endlist}
+  {\item}
+% Get rid of quotes around title
+\DeclareFieldFormat[article,inbook,incollection,inproceedings,patent,thesis,unpublished]{title}{#1}
+% Suppress In: before journal name
+\renewbibmacro{in:}{}
+% Suppress pp. before page numbers
+\DeclareFieldFormat[article]{pages}{#1}
+% https://tex.stackexchange.com/questions/438396/regex-replacement-for-biblatex-biber-to-eliminate-the-warning-month-not-integer
+\DeclareSourcemap{
+  \maps[datatype=bibtex]{
+    \map[overwrite]{
+      \step[fieldsource=month, match=\regexp{\A(j|J)an\Z}, replace=1]
+      \step[fieldsource=month, match=\regexp{\A(f|F)eb\Z}, replace=2]
+      \step[fieldsource=month, match=\regexp{\A(m|M)ar\Z}, replace=3]
+      \step[fieldsource=month, match=\regexp{\A(a|A)pr\Z}, replace=4]
+      \step[fieldsource=month, match=\regexp{\A(m|M)ay\Z}, replace=5]
+      \step[fieldsource=month, match=\regexp{\A(j|J)un\Z}, replace=6]
+      \step[fieldsource=month, match=\regexp{\A(j|J)ul\Z}, replace=7]
+      \step[fieldsource=month, match=\regexp{\A(a|A)ug\Z}, replace=8]
+      \step[fieldsource=month, match=\regexp{\A(s|S)ep\Z}, replace=9]
+      \step[fieldsource=month, match=\regexp{\A(o|O)ct\Z}, replace=10]
+      \step[fieldsource=month, match=\regexp{\A(n|n)ov\Z}, replace=11]
+      \step[fieldsource=month, match=\regexp{\A(d|D)ec\Z}, replace=12]
+    }
+  }
+}
+
+% For tables made with kableExtra
+\usepackage{booktabs}
+%% Clickable reference links and urls
+\usepackage[hidelinks]{hyperref}
+% \hypersetup{
+%     colorlinks=true,
+%     linkcolor=blue,
+%     citecolor=.,
+%     filecolor=magenta,      
+%     urlcolor=blue,
+% }
+\urlstyle{same}
+
+%% Remove section numbering
+\makeatletter
+\renewcommand{\@seccntformat}[1]{}
+\makeatother
+\renewcommand{\numberline}[1]{}
+
+%% Custom macros
+\DeclareMathOperator{\clo}{\mathcal{C}}
+\DeclareMathOperator{\cen}{cen}
+\DeclareMathOperator{\clr}{clr}
+\DeclareMathOperator{\gm}{g}
+\DeclareMathOperator{\E}{E}
+\DeclareMathOperator{\var}{var}
+\DeclareMathOperator{\mvar}{mvar}
+\renewcommand*{\vec}[1]{\mathbf{#1}}
+% multiply / divide
+\DeclareMathOperator{\td}{\:{}^\times \! / \:}
+% \renewcommand*{\vec}[1]{{#1}}
+\renewcommand{\div}{\: / \:}
+\newcommand{\sample}[1]{\text{S}_{#1}}
+% Norm
+\DeclarePairedDelimiter\norm{\lVert}{\rVert}
+% Absolute value
+\DeclarePairedDelimiter\abs{\lvert}{\rvert}
