@@ -1,0 +1,208 @@
+\input{./preamble.tex}
+
+\DeclareMathOperator{\vecop}{vec}
+
+\author{Michael McLaren, m.mclaren42@gmail.com}
+
+\begin{document}
+
+\maketitle
+
+% Estimation of the compositional mean and variance in the presence of structural
+% or randomly missing data using the method of \textcite{vandenBoogaart2006}.
+
+
+% The projection matrix $P_{M}$
+% \begin{align *}
+%   P_{\emptyset} = \frac{1}{5}
+%       \begin{pmatrix}{4}
+%         & {-1} & {-1} & {-1} & {-1} \\ {-1} & {4} & {-1} & {-1} & {-1} \\ {-1} &
+%         {-1} & {4} & {-1} & {-1} \\ {-1} & {-1} & {-1} & {4} & {-1} \\ {-1} &
+%         {-1} & {-1} & {-1} & {4}
+%       \end{pmatrix}
+%  \end{align*}
+
+\section{Variance estimation}
+
+% Motivation for this document: The equation, proof, and explanations in
+% \textcite{vandenBoogaart2006} and \textcite{Bren2008} have a number of mistakes
+% and the explanation and proof are not very detailed. Here I attempt to address
+% these shortcomings.
+
+Result is from \textcite{vandenBoogaart2006}, with further background given in
+\textcite{Bren2008}. However, the explanation of the derivation is limited, and
+there are some typographical and numerical mistakes which I fix below.
+
+\subsection{Background}
+
+Notation: I use the notation of ``Matrix Algebra'' rather than that in the
+original derivations. In particular, I use $\vecop(\cdot)$ for the matrix
+vectorization operator, $A'$ for the transpose of $A$, and $A^+$ for the
+Moore-Penrose inverse of $A$.
+
+
+Let $\vec x_i$ be the compositional error observed in sample $i$ and $M_i$
+denoting the set of elements (taxa) for which the error is undefined; that is,
+$x_{ik}$ is undefined for $k \in M_k$. Let $\log \vec x_i$ be the element-wise
+natural logarithm of the vector $\vec x_i$. I treat $\vec x_i$ as a
+compositional vector in the sense that the ratios among elements carry meaning,
+and so the elements can all be multiplied by a constant, or the elements of
+$\log \vec x_i$ all be added to a constant. 
+
+The projection matrix $P_{M}$ transforms a log-scale compositional vector $\log
+x$ to a clr-vector whose elements are 0 for the taxa in the set $M$. That is,
+if $M_i$ is the set of taxa missing in sample $i$, then $\vec v_i = P_{M_i}
+\log \vec x_i$ satisfies $v_{ik} = 0$ for $k \in M_i$ and $\sum_k v_{ik} = 0$.
+Section 4.2 of \textcite{Bren2008} explains how to construct the matrix $P_{M}$
+with some illustrative examples. A brief recipe: If $K$ is the total number of
+taxa (i.e., the length of $\vec x$), and $K_i$ is the number of taxa in sample
+$i$ (i.e., $K_i = K - \abs{M_i}$), then $P_{M_i}$ is constructed by subtracting
+a matrix filled with $1/K_i$ from the $K$-dimensional identity matrix, and then
+zero-ing out the rows and columns corresponding to the missing taxa in $M_i$.
+In order to perform the matrix multiplication $P_{M_i} \log \vec x_i$, we have
+to replace the undefined elements of $\log \vec x_i$ with finite numbers, which
+I take to be 0 for simplicity, though they cancel in the computation and do not
+change the value of $\vec v_i$.
+
+\paragraph{Result:}
+
+Let $P^{(ij)} \equiv P_{M_i \cup M_j}$. An unbiased estimator of the variance
+in the presence of missing taxa in some samples is
+\begin{align} 
+  \label{eq:variance}
+  \vecop (\hat{\var}[\clr \vec x])
+  = \frac{1}{2} \left(\sum_{i\ne j} P^{(ij)} \otimes P^{(ij)} \right)^{+}
+    \sum_{i\ne j} \vecop\left[ P^{(ij)} (\log \vec x_i - \log \vec x_j) 
+      (\log \vec x_i - \log \vec x_j)' P^{(ij)} \right]
+%  P^{(ij)} P^{(ij)} P^{(ij)}
+\end{align}
+
+Notes:
+\begin{itemize}
+  \item The factor of $\tfrac{1}{2}$ is missing from the equations in
+    \textcite{vandenBoogaart2006} and \textcite{Bren2008}, due to a mistake in
+    their derivation (see below).
+  \item Here, $P^{(ij)}$ is a shorthand for $P_{M_i \cup M_j}$; this matrix is
+    incorrectly written as $P_{M_i \cap M_j}$ in
+    \textcite{vandenBoogaart2006} and \textcite{Bren2008}.
+  \item For computing the variance we can take the sum to be over $i<j$, since
+    the result is the same whether the summations are taken over all $i,j$,
+    over $i\ne j$, or over $i < j$.
+\end{itemize}
+
+\paragraph{Derivation:}
+
+The strategy is to consider the variance of the differences between samples
+projected into the space of shared taxa, $P^{(ij)} (\log \vec x_i - \log \vec
+x_j)$. The mean is 
+\begin{align} 
+  \label{}
+  \E [P^{(ij)} ( \log \vec x_i - \log \vec x_j )] = 0
+\end{align}
+and the variance is
+\begin{subequations} 
+  \label{eq:xij-var}
+\begin{align} 
+  &\var \left[P^{(ij)}(\log \vec x_i - \log \vec x_j) \right]
+  \\&\qquad= P^{(ij)} \E[ (\log \vec x_i - \log \vec x_j)(\log \vec x_i - \log \vec
+    x_j)'] P^{(ij)} 
+  \\&\qquad= P^{(ij)} \var[\log \vec x_i - \log \vec x_j] P^{(ij)}
+  \\&\qquad= 2 P^{(ij)} \var[\clr \vec{x}] P^{(ij)},
+\end{align}
+\end{subequations}
+where we have used that $P^{(ij)}' = P^{(ij)}$ and that $P^{(ij)} \log \vec
+x_i$ and $P^{(ij)} \log \vec x_j$ are assumed i.i.d. for $i \ne j$. (Note, the
+factor of 2 is missing in the derivation of \textcite{vandenBoogaart2006}.)
+Next, we apply vectorization and summation over $i\ne j$ to the expressions b
+and d. Expression b gives 
+\begin{align*} 
+  & \sum_{i\ne j} \vecop \left( P^{(ij)} \E[ (\log \vec x_i - \log \vec
+    x_j)(\log \vec x_i - \log \vec x_j)'] P^{(ij)} \right)
+  \\&\qquad = \E \left[ \sum_{i\ne j} \vecop \left( P^{(ij)} (\log \vec x_i -
+      \log \vec x_j)(\log \vec x_i - \log \vec x_j)' P^{(ij)} \right) \right]
+\end{align*}
+and expression d gives
+\begin{align*}
+  2 \sum_{i\ne j} \vecop \left(P^{(ij)} \var[\clr \vec{x}] P^{(ij)} \right)
+  &= 2 \sum_{i\ne j} P^{(ij)} \otimes P^{(ij)} \vecop ( \var[\clr \vec{x}] )
+  \\&= 2 \left( \sum_{i\ne j} P^{(ij)} \otimes P^{(ij)}\right) 
+    \vecop ( \var[\clr \vec{x}] ).
+\end{align*}
+Setting these expressions equal to each other, we have
+\begin{align} 
+  \label{}
+  \E \left[ \sum_{i\ne j} \vecop \left( P^{(ij)} (\log \vec x_i - \log \vec
+    x_j)(\log \vec x_i - \log \vec x_j)' P^{(ij)} \right) \right]
+  = 2 \left( \sum_{i\ne j} P^{(ij)} \otimes P^{(ij)}\right) 
+    \vecop ( \var[\clr \vec{x}] ).
+\end{align}
+The estimator for $\vecop ( \var[\clr \vec{x}])$ in \eqref{eq:variance}
+follows by multiplying both sides by the MP inverse of the Kronecker sum and
+estimating the expectation of the sum on the left by the observed sum.
+
+Notes:
+\begin{itemize}
+  \item Added factor of 2 in Expression 3d results in the additional factor of
+    $1/2$ in Equation \eqref{eq:variance}
+  \item The explanation of Bren2008 incorrectly says that the derivation in
+    vandenBoogaart2006 uses the variation matrix. The variation matrix
+    describes the variance in the log ratios of all pairs of taxa; it thus has
+    to do with pairs of taxa, rather than the pairs of samples that the
+    derivation is based on.
+\end{itemize}
+
+\section{Follow-up notes}
+
+Let the $K$-element vector $\vec x$ be a random compositional vector
+representing a hypothetical observation from a sample with no missing taxa.
+We're trying to find $\var \clr \vec x$, the covariance matrix of the clr of
+$\vec x$,
+\begin{align*}
+  \var \clr \vec x 
+  = \E[ (\clr \vec x - \E[\clr \vec x]) (\clr \vec x - \E[\clr
+    \vec x])'].
+\end{align*}
+But all the samples may have missing taxa; there may not even be a single taxon
+that is in every sample. So we can't compute the sample covariance matrix,
+\begin{align*}
+  \hat{\var}[\clr \vec x] =
+  \frac{1}{n-1} \sum_{i=1}^n 
+    (\clr \vec x_i - \overline{\clr \vec x}) 
+    (\clr \vec x_i - \overline{\clr \vec x})';
+\end{align*}
+we need an alternative approach. 
+
+The way around this problem taken by the derivation is to consider differences
+between pairs of samples, appropriately restricted to the set of taxa $M_i\cap
+M_j$ found in both samples.  The $\vec x_i$ and $\vec x_j$ are $K$-element
+vectors corresponding to samples $i$ and $j$.  The $\vec x_i$ would be iid, if
+there were no missing taxa; but there are missing taxa, $M_i$ being the set of
+missing taxa in sample $i$. Let $\vec y_i = \log \vec x_i$ be the element-wise
+log of $\vec x_i$. Now, the $P^{(ij)} \vec y_i$ and $P^{(ij)} \vec y_j$ are the
+clr'd vectors corresponding to just the set of taxa $M_i \cap M_j$ found in
+both samples, equal 0 for other taxa, and are things we can now sensibly talk
+about as being iid. The right-hand side of Equation \eqref{eq:variance} only
+uses $P^{(ij)} (\vec y_i - \vec y_j)$ and so is something we can
+actually compute.
+
+We're aren't computing the covariance between samples---we're computing the
+covariance between taxa of the difference between samples, and using the fact
+that $\var [\vec Z_i - \vec Z_j] = 2 \var \vec Z$ for two iid vectors $\vec
+Z_i$ and $\vec Z_j$. 
+
+Some possibly useful intuition about why considering the overlapping set of
+taxa in each pair of samples would allow recovering $\var \clr \vec x$: Each
+pair of samples with a set of overlapping taxa $M_i \cap M_j$ provies
+information about the variance associated with the ratios of those taxa. The
+clr-variance matrix is just another way of encoding the $\var(\log x_k/x_l)$,
+where $x_k/x_l$ is the ratio of taxa $k$ and $l$. \textcite{Aitchison1986}
+showed that you can convert between the (co)variance matrix $\Sigma = \var \clr
+\vec x$ and the so-called \emph{variation matrix} $T = \{\var(\log x_k/x_l)\}$,
+giving the variances of all the log ratios. This fact isn't directly used in
+the derivation but explains how we can go from considering just the subset of
+overlapping taxa $M_i\cap M_j$ in each pair of samples to getting the full
+clr-variance matrix.
+
+\printbibliography
+
+\end{document}
