@@ -173,17 +173,17 @@ that is in every sample. So we can't compute the sample covariance matrix,
 we need an alternative approach. 
 
 The way around this problem taken by the derivation is to consider differences
-between pairs of samples, appropriately restricted to the set of taxa $M_i\cap
-M_j$ found in both samples.  The $\vec x_i$ and $\vec x_j$ are $K$-element
-vectors corresponding to samples $i$ and $j$.  The $\vec x_i$ would be iid, if
-there were no missing taxa; but there are missing taxa, $M_i$ being the set of
-missing taxa in sample $i$. Let $\vec y_i = \log \vec x_i$ be the element-wise
-log of $\vec x_i$. Now, the $P^{(ij)} \vec y_i$ and $P^{(ij)} \vec y_j$ are the
-clr'd vectors corresponding to just the set of taxa $M_i \cap M_j$ found in
-both samples, equal 0 for other taxa, and are things we can now sensibly talk
-about as being iid. The right-hand side of Equation \eqref{eq:variance} only
-uses $P^{(ij)} (\vec y_i - \vec y_j)$ and so is something we can
-actually compute.
+between pairs of samples, appropriately restricted to the set of taxa
+$\{1,\dots, K\} \setminus (M_i\cup M_j)$ found in both samples.  The $\vec x_i$
+and $\vec x_j$ are $K$-element vectors corresponding to samples $i$ and $j$.
+The $\vec x_i$ would be iid, if there were no missing taxa; but there are
+missing taxa, $M_i$ being the set of missing taxa in sample $i$. Let $\vec y_i
+= \log \vec x_i$ be the element-wise log of $\vec x_i$. Now, the $P^{(ij)} \vec
+y_i$ and $P^{(ij)} \vec y_j$ are the clr'd vectors corresponding to just the
+set of taxa found in both samples, equal 0 for other taxa, and are things we
+can now sensibly talk about as being iid. The right-hand side of Equation
+\eqref{eq:variance} only uses $P^{(ij)} (\vec y_i - \vec y_j)$ and so is
+something we can actually compute.
 
 We're aren't computing the covariance between samples---we're computing the
 covariance between taxa of the difference between samples, and using the fact
@@ -192,16 +192,87 @@ Z_i$ and $\vec Z_j$.
 
 Some possibly useful intuition about why considering the overlapping set of
 taxa in each pair of samples would allow recovering $\var \clr \vec x$: Each
-pair of samples with a set of overlapping taxa $M_i \cap M_j$ provies
-information about the variance associated with the ratios of those taxa. The
-clr-variance matrix is just another way of encoding the $\var(\log x_k/x_l)$,
-where $x_k/x_l$ is the ratio of taxa $k$ and $l$. \textcite{Aitchison1986}
-showed that you can convert between the (co)variance matrix $\Sigma = \var \clr
-\vec x$ and the so-called \emph{variation matrix} $T = \{\var(\log x_k/x_l)\}$,
-giving the variances of all the log ratios. This fact isn't directly used in
-the derivation but explains how we can go from considering just the subset of
-overlapping taxa $M_i\cap M_j$ in each pair of samples to getting the full
-clr-variance matrix.
+pair of samples with a set of overlapping taxa provides information about the
+variance associated with the ratios of those taxa. The clr-variance matrix is
+just another way of encoding the $\var(\log x_k/x_l)$, where $x_k/x_l$ is the
+ratio of taxa $k$ and $l$. \textcite{Aitchison1986} showed that you can convert
+between the (co)variance matrix $\Sigma = \var \clr \vec x$ and the so-called
+\emph{variation matrix} $T = \{\var(\log x_k/x_l)\}$, giving the variances of
+all the log ratios. This fact isn't directly used in the derivation but
+explains how we can go from considering just the subset of overlapping taxa in
+each pair of samples to getting the full clr-variance matrix.
+
+
+\section{Response to Glen's notes on an alternative estimator}
+
+% First, some notes about notation / the basic setup. I made a mistake in my
+% follow-up notes (now fixed), where I was using $M_i$ to be the taxa in sample
+% $i$, rather than the missing taxa. So I was writing $M_i \cap M_j$ as the taxa
+% shared by both samples. But I don't think that mistake has led to any
+% confusion.
+%
+% Also, I'm ignoring the count nature of the original data. I'm treating the data
+% as truly compositional, in the sense that only the ratios of the elements of
+% $\vec x$ or the differences between the elements of $\log \vec x$ carry any
+% meaning. I'm thus treating $\vec x$ as the equivalence class of all vectors
+% that differ only by a constant multiple to all elements. But this equivalence
+% nature isn't important for our discussion here. What is important is that only
+% the ratios of elements carry meaning in a single observation.
+
+I had a chance to look over your notes and think about this a bit more. (Thanks
+for sending them; this dialog is helping hone my thinking about this problem.)
+I'm not 100\% sure about what I'm about to say, but it represents my current
+best understanding of the situation, and why I think the estimator of
+\textcite{vandenBoogaart2006} is doing a better job of handling the missing
+data than your estimator.
+
+The fundamental reason comes down to the compositional nature of the data.
+(Note, I'm ignoring the fact that the original data is counts). The assumption
+I'm starting from is that for each observation $\vec x_i$, only the ratios of
+the elements of $\vec x_i$ carry meaning, and only the differences between the
+elements of $\log \vec x_i$ carry meaning. For this reason, when computing the
+mean in the presence of missings, we must control for the number of times we
+observed each pair of taxa in the same sample. That is why we can't just take
+element-wise means of $\clr_i$ (Glen's notation), dividing each element by the
+number of times that taxon was observed. 
+
+When describing the variation between samples, **only the fold-changes in the
+ratios of taxa between samples carry meaning.** This is a core assumption of
+CoDA though perhaps not often articulated as such. When computing the variance,
+we must control for the number of times we observed a fold-change in a pair of
+taxa between a pair of samples. My (still imperfect) understanding is that the
+method of \textcite{vandenBoogaart2006} is able to do this correctly by
+operating on pairs of samples, whereas I don't think your method does.
+
+I think your comment that their method is not efficient is missing two points.
+First, all $n$ choose $2$ unique sample pairs are considered in the sum; this
+gives a chance for a taxon from sample $i$ that is not used in one pair to be
+used in another pair. The second point is the point above, that the salient
+information is captured by the fold-changes in ratios between samples. Consider
+the following example.
+
+Suppose that there are four samples and three possible taxa. Samples 1, 2, and
+3 are missing Taxa 1, 2, and 3, respectively. Sample 4 has all 3 taxa. It is
+true that the observation of the 1st taxon of Sample 4 is not used in the term
+of the sum for $i,j = 1,4$, but it is used in the terms $2,4$ and $3,4$.
+Nothing (relevant) is thrown away, and the full (salient) information is used.
+Now suppose that Sample 4 also had another 5 taxa not in any of the first three
+samples. The observations of these taxa will never be used, and all covariances
+involving them will be undefined (though set to 0 by the estimator, since it
+picks the min-normed estimate). But that is as it should be; because we're
+treating the data as compositional, the variation among samples has to take the
+form of fold-changes in ratios among taxa, and we do not observe any
+fold-changes of ratios involving these taxa.
+
+This framing of compositional data as fundamentally being about fold-changes in
+taxon-ratios between samples (or, ratios of ratios), is seldom used in the
+microbial CoDA literature, and I think that's because it's a strange way of
+thinking that is not necessary when we don't have this form of missing data.
+For example, we can just take the CLR or some other ratio transform, and treat
+these as Euclidean vectors. Your estimator gives the same answer as that of
+\textcite{vandenBoogaart2006} in this case (after multiplying by $N / (N-1)$).
+And if there were no missings, we could just the the Euclidean mean of the
+$\clr_i$'s to compute the mean.
 
 \printbibliography
 
