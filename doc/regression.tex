@@ -1,0 +1,201 @@
+\input{./preamble.tex}
+
+\DeclareMathOperator{\vecop}{vec}
+
+\author{Michael McLaren, m.mclaren42@gmail.com}
+
+\begin{document}
+
+\maketitle
+
+% todo
+% - what I've done so far
+% - version with transposed mat's
+% - version with taxa covariates
+
+\section{Bias and linear regression: Least-squares solution}
+
+For these notes, I'm going to be sticking to the log scale and using
+traditional multivariate regression matrix notation.  Following the notation of
+``Matrix Algebra'' (Abadir and Magnus), I use $\vecop(\cdot)$ for the matrix
+vectorization operator, $\vec X'$ for the transpose of $\vec X$, $\vec X^+$ for
+the Moore-Penrose inverse of $\vec X$, and $\vec X_{i} = \vec X_{i\cdot}$ to be
+a column vector whose elements are the $i$-th row of $\vec X$.
+
+Let $n$ be the number of samples, $p$ be the number of sample covariates, and
+$q$ be the number of taxa. 
+Let $\vec Y$ be the $n \times q$ matrix of log compositional errors that we
+observed for the $n$ samples, with rows corresponding to samples and columns
+corresponding to taxa. In terms of the manuscript's notation, $\vec Y_{i} =
+\vec Y_{i\cdot} = \ln [\vec O(i) / \vec A(i)]$.  Notably,
+\begin{enumerate}
+  \item The meaning of $\vec Y_{i}$ is only contained in the differences
+    between elements (taxa) and would be unchanged if each $\vec Y_i$ were
+    multiplied by a positive constant. 
+  \item The elements of $\vec Y_i$ corresponding to missing taxa ($0/0$) are
+    interpreted as providing no information about the difference between that
+    element and the other elements of $\vec Y_i$.
+\end{enumerate}
+Let $\vec P^{(i)}$ be the $q\times q$ clr-projection matrix, which projects
+$\vec Y_{i}$ onto the subspace of the clr vector space corresponding to the
+taxa that are present in sample $i$. To project $\vec Y_{i}$ by
+left-multiplication by $\vec P^{(i)}$, we first must replace the $0/0$s with
+(arbitrary) finite values. Then, the transformation $\vec Y_{i}\mapsto \vec
+P^{(i)}\vec Y_{i}$ centers the non-missing elements to sum to 0 by subtracting
+their mean, and sets the missing elements to 0.
+
+Let $\vec X$ be the $n\times(p+1)$ matrix of sample covariates and $\vec B$ be
+the $(p+1)\times q$ matrix of log-efficiency parameters which it is our goal to
+learn. To pin $\vec B$ down to a well-defined value, assume that the rows of
+$\vec B$ are each centered to sum to 0. Also, let $\vec E$ be the $n \times q$
+matrix of residual (random) errors. The expected log efficiencies for sample
+$i$ are $\vec X_i' \vec B$, and the realized log efficiencies are
+$\vec X_i' \vec B + \vec E_i'$.
+
+If all taxa were present in all samples, we could simply take all the
+log-compositions to be centered and write the model for sample $i$ as $\vec
+Y_i' = \vec X_i' \vec B + \vec E_i'$ and for all samples as 
+\begin{align} 
+  \label{eq:model-simple}
+  \vec Y = \vec X \vec B + \vec E.
+\end{align}
+The least-squares estimate for $\vec B$ would then simply be
+\begin{align}
+  \label{eq:lss-simple}
+  \hat{\vec B} = (\vec X' \vec X)^{+} \vec X' \vec Y.
+\end{align}
+
+With missing taxa, the model for sample $i$ is instead
+\begin{align} 
+  \label{}
+  \vec P^{(i)} \vec Y_i 
+  % &= \vec P^{(i)} [ (\vec X_i' \vec B)' + \vec E_i ]
+  &= \vec P^{(i)} [ \vec B' \vec X_i + \vec E_i ]
+  \\&= \vec P^{(i)} \vec B' \vec X_i + \vec P^{(i)}\vec E_i.
+\end{align}
+Since the projection matrices differ across samples, we can no longer simply
+center all the samples identically to satisfy \eqref{eq:model-simple}.  Our
+strategy is instead to use vectorization and construction of a block diagonal
+matrix from the projection matrices $\vec P^{(i)}$ to obtain an equation in the
+form \eqref{eq:model-simple}, so that we can employ \eqref{eq:lss-simple}.
+
+Let $\tilde{\vec P} = \text{diag}\{\vec P^{(i)}\}$ be the $nq \times nq$
+block-diagonal matrix created from the list of matrices $\{\vec P^{(i)}\}$.  To
+project all samples onto their relevant subspaces, we multiply $\tilde{\vec
+  P}$ by $\vecop(\vec Y')$, where the log-compositional error of sample $i$ is
+contained in rows $(i-1)q + 1$ to $iq$ of $\vecop(\vec Y')$.
+% That is,
+% \begin{align*} 
+%   \tilde{\vec P} \vecop(\vec Y') = 
+%     \begin{bmatrix}
+%       \vec P^{(1)} \vec Y_1\\
+%       \vdots \\
+%       \vec P^{(n)} \vec Y_n
+%     \end{bmatrix}.
+% \end{align*}
+Now we can write the linear model for all samples as
+\begin{align} 
+  \tilde{\vec P} \vecop(\vec Y') 
+    &= \tilde{\vec P} \vecop(\vec B' \vec X') + \tilde{\vec P} \vecop(\vec E'),
+\end{align}
+which has the expanded form
+\begin{align*} 
+  \begin{bmatrix}
+    \vec P^{(1)} \vec Y_1\\
+    \vdots \\
+    \vec P^{(n)} \vec Y_n
+  \end{bmatrix}
+  = 
+  \begin{bmatrix}
+    \vec P^{(1)} \vec B' \vec X_1\\
+    \vdots \\
+    \vec P^{(n)} \vec B' \vec X_n
+  \end{bmatrix}
+  +
+  \begin{bmatrix}
+    \vec P^{(1)} \vec E_1\\
+    \vdots \\
+    \vec P^{(n)} \vec E_n
+  \end{bmatrix}.
+\end{align*}
+Next, we use an identity involving the Kronecker product and the vec operator
+(Abadir and Magnus, \emph{Matrix Algebra}, p. 282) to obtain $\vecop(\vec B'
+\vec X') = (\vec X \otimes \vec I_q) \vecop(\vec B')$, and hence
+\begin{align} 
+  \label{}
+  \tilde{\vec P} \vecop(\vec Y') 
+    % &= \tilde{\vec P} \vecop(\vec (XB)') + \tilde{\vec P} \vecop(\vec E')
+  &= \tilde{\vec P} (\vec X \otimes \vec I_q) \vecop(\vec B')
+    + \tilde{\vec P} \vecop(\vec E').
+\end{align}
+We now have the desired form, which can be solved by the standard least-squares
+solution.
+Let
+\begin{itemize}
+  \item $\tilde{\vec y} = \tilde{\vec P} \vecop(\vec Y')$
+  \item $\tilde{\vec X} = \tilde{\vec P} (\vec X \otimes \vec I_q)$
+  \item $\tilde{\vec b} = \vecop(\vec B')$
+  \item $\tilde{\vec e} = \tilde{\vec P} \vecop(\vec E')$
+\end{itemize}
+so that
+\begin{align} 
+  \label{}
+  \tilde{\vec y} &= \tilde{\vec X} \tilde{\vec b} + \tilde{\vec e}.
+\end{align}
+The least-squares solution for $\tilde{\vec b} = \vecop (\vec B')$ is
+\begin{align}
+  \label{eq:b-tilde-hat}
+  % \vecop(\hat{\vec B}')
+  \hat{\tilde{\vec b}}
+  = (\tilde{\vec X}' \tilde{\vec X})^{+} \tilde{\vec X}' \tilde{\vec y}.
+\end{align}
+
+\subsubsection{Special case of no covariates}
+
+If there are no sample covariates ($p=0$), then we are in the situation
+considered in Mclaren2019. In this case, we expect that the solution
+\eqref{eq:b-tilde-hat} should equate to the estimator described by
+vandenBoogaart2006, which in the present notation we can write as
+\begin{align} 
+  \label{}
+  \hat {\vec B}_1 = \left(\sum_i \vec P^{(i)} \right)^+ 
+    \sum_i \vec P^{(i)} \vec Y_i.
+\end{align}
+(Here, $\vec B$ is a $1\times q$ matrix and so $\vec B}_1$ is just a way to
+write the column vector of log efficiencies.)
+We can confirm this equivalence by noting that 
+\begin{align*} 
+  \tilde {\vec y} = 
+    \begin{bmatrix}
+      \vec P^{(1)} \vec Y_1\\
+      \vdots \\
+      \vec P^{(n)} \vec Y_n
+    \end{bmatrix},
+\end{align*}
+and that for this special case we have that
+\begin{align*} 
+  \tilde {\vec X} = 
+    \begin{bmatrix}
+      \vec P^{(1)}\\
+      \vdots \\
+      \vec P^{(n)}
+    \end{bmatrix}
+\end{align*}
+and
+\begin{align*} 
+  \tilde {\vec b} = \vec B_1.
+\end{align*}
+It follows that
+\begin{align*} 
+  \tilde {\vec X}' \tilde {\vec X}
+  = \sum_i \vec P^{(i)} \vec P^{(i)}
+  = \sum_i \vec P^{(i)}
+\end{align*}
+and
+\begin{align*} 
+  \tilde {\vec X}' \tilde {\vec y}
+  = \sum_i \vec P^{(i)} \vec P^{(i)} \vec Y_i
+  = \sum_i \vec P^{(i)} \vec Y_i.
+\end{align*}
+
+\end{document}
